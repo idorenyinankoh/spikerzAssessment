@@ -1,9 +1,0 @@
-{
-  "youtubeTile": "Youtube",
-  "youtubeGoogleConnect": ".google-and-youtube-login-container > div > app-button > .ant-btn",
-  "gooogle":{
-    "emailField":"#identifierId",
-    "emailNext":"Next",
-    "passwordField":"#password > .aCsJod > .aXBtI > .Xb9hP > .whsOnd"
-  } 
-}

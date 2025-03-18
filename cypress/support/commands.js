@@ -23,3 +23,26 @@ Cypress.Commands.add('youtubeGoogleLogin', (email, password) => {
         cy.contains('Next').click();
     });
 });
+
+Cypress.Commands.add('withRetry', (fn, options = {}) => {
+    const maxAttempts = options.maxAttempts || 3;
+    const delay = options.delay || 1000;
+    
+    let attempts = 0;
+    
+    const attempt = () => {
+        attempts++;
+        
+        try {
+            return fn();
+        } catch (error) {
+            if (attempts === maxAttempts) {
+                throw error;
+            }
+            cy.wait(delay);
+            return attempt();
+        }
+    };
+    
+    return attempt();
+});

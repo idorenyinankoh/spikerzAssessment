@@ -1,6 +1,7 @@
 /// <reference types="cypress" />
+import YouTubePage from '../../fixtures/pageObjects/YouTubePage';
+import GoogleAuthPage from '../../fixtures/pageObjects/GoogelAuthPage';
 
-const GOOGLE_URL = "https://accounts.google.com";
 const endpoints = {
   visualWebsiteOptimizer: 'https://dev.visualwebsiteoptimizer.com/j.php?a=*',
   wistiaMedias: [
@@ -42,70 +43,79 @@ const endpoints = {
     '/assets/il18n/en.json',
     '/assets/mocks/info.json',
   ],
-  // reddit: [
-  //   'https://www.redditstatic.com/ads/conversions-config/v1/pixel/config/*',
-  //   'https://pixel-config.reddit.com/pixels/*',
-  // ],
   linkedIn: 'https://px.ads.linkedin.com/wa/',
   pipedream: 'https://pipedream.wistia.com/mput?topic=metrics'
-  // mixpanel: [
-  //   'https://api-js.mixpanel.com/track/?verbose=1&ip=1',
-  //   'https://api-js.mixpanel.com/engage/?verbose=1&ip=1',
-  // ],
 };
 
 
 describe('example to-do app', () => {
-  beforeEach(() => {
+  // cypress/e2e/social-connect/youtube-login.cy.js
 
-    // Intercept and validate each API call
-    // cy.intercept('GET', endpoints.visualWebsiteOptimizer).as('visualWebsiteOptimizer');
-    // endpoints.wistiaMedias.forEach(url => {
-    //   cy.intercept('GET', url).as('wistiaMedia');
-    // });
-    // cy.intercept('GET', endpoints.hubApi).as('hubApi');
-    // endpoints.googleAnalytics.forEach(url => {
-    //   cy.intercept('POST', url).as('googleAnalytics');
-    // });
-    // endpoints.assets.forEach(url => {
-    //   cy.intercept('GET', url).as('asset');
-    // });
+  describe('YouTube Social Connection', () => {
+    beforeEach(() => {
+      // Visit the application
+      cy.visit(Cypress.env('testUrl') + '/social-connect/');
 
-    // cy.intercept('POST', endpoints.linkedIn).as('linkedIn');
-    // cy.intercept('POST', endpoints.pipedream).as('pipedream');
+      // Verify page load
+      cy.url().should('include', '/social-connect');
+    });
 
-    // navigating to social connect
-    cy.visit(Cypress.env("testUrl") + '/social-connect/')
+    it('should successfully connect YouTube account', () => {
+      // Arrange
+      const expectedSuccessMessage = 'Successfully connected YouTube account';
 
-    // Wait for all intercepts and assert they return 200
-    //   cy.wait('@visualWebsiteOptimizer').its('response.statusCode').should('satisfy', (status) => [200, 201, 204].includes(status));
-    //   cy.wait('@hubApi').its('response.statusCode').should('satisfy', (status) => [200, 201, 204].includes(status));
-    //   cy.wait('@linkedIn').its('response.statusCode').should('satisfy', (status) => [200, 201, 204].includes(status));
-    //   cy.wait('@pipedream').its('response.statusCode').should('satisfy', (status) => [200, 201, 204].includes(status));
+      // Act
+      YouTubePage.clickYouTubeTile();
+      YouTubePage.clickGoogleConnect();
 
-    //   endpoints.wistiaMedias.forEach(() => {
-    //     cy.wait('@wistiaMedia').its('response.statusCode').should('satisfy', (status) => [200, 201, 204].includes(status));
-    //   });
-    //   endpoints.googleAnalytics.forEach(() => {
-    //     cy.wait('@googleAnalytics').its('response.statusCode').should('satisfy', (status) => [200, 201, 204].includes(status));
-    //   });
-    //   endpoints.assets.forEach(() => {
-    //     cy.wait('@asset').its('response.statusCode').should('satisfy', (status) => [200, 201, 204].includes(status));
-    //   });
-  })
-  it('Login with valid details', () => {
-
-    // clicking on youtube icon
-    cy.fixture("pageObjects/clientApp").then((authObj) => {
-      cy.contains(authObj.youtubeTile).click()
-
-      // click on youtube login
-      cy.get(authObj.youtubeGoogleConnect).click()
-
-      // handling redirect to google
-      cy.fixture("testData/authData").then((data) => {
-        cy.youtubeGoogleLogin(data.email, data.password);
+      // Assert
+      cy.withRetry(() => {
+        cy.fixture("testData/authData").then((data) => {
+          cy.youtubeGoogleLogin(GoogleAuthPage.elements.emailInput, GoogleAuthPage.elements.emailInput);
+        });
+      }, {
+        maxAttempts: 3,
+        delay: 1000
       });
+
+      // Verify successful connection
+      cy.url().should('include', '/social-connect');
+      cy.contains(expectedSuccessMessage).should('be.visible');
+
+      // Verify API response
+      cy.wait('@connectionAPI')
+        .its('response.statusCode')
+        .should('equal', 200);
+    });
+
+    it('should handle invalid credentials', () => {
+      // Act
+      YouTubePage.clickYouTubeTile();
+      YouTubePage.clickGoogleConnect();
+
+      // Assert
+      cy.withRetry(() => {
+        GoogleAuthPage.login(
+          'invalid@email.com',
+          'invalidPassword'
+        );
+      });
+
+      cy.contains('Invalid credentials').should('be.visible');
+    });
+
+    it('should handle network errors', () => {
+      // Simulate network error
+      cy.intercept('POST', '**/oauth/connect', {
+        forceNetworkError: true
+      }).as('networkError');
+
+      // Act
+      YouTubePage.clickYouTubeTile();
+      YouTubePage.clickGoogleConnect();
+
+      // Assert
+      cy.contains('Connection failed. Please try again.').should('be.visible');
     });
   });
 
